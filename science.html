@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+
+<body>
+
+</body>
+<script>
+  //loadImage.js
+  let __id = 0
+  function getId() {
+    return __id++
+  }
+
+  function loadImage(images, callback, timeout) {
+    let count = 0;
+    let success = true;
+    let timeoutId = 0;
+    let isTimeOut = false;
+    for (let key in images) {
+      if (!images.hasOwnProperty(key)) {
+        continue;
+      }
+      let item = images[key]
+
+      if (typeof item === 'string') {
+        item = images[key] = {
+          src: item
+        }
+      }
+      if (!item || !item.src) {
+        continue;
+      }
+      count++;
+      item.id = `__ima__${key}${getId()}`
+      item.img = window[item.key] = new Image()
+      doLoad(item)
+    }
+    //遍历完成如果计数为0，则直接调用callback
+    if (!count) {
+      callback(success)
+    } else if (timeout) {
+      timeoutId = setTimeout(onTimeout, timeout);
+    }
+    //图片加载函数
+    function doLoad(item) {
+
+      item.status = 'loading';
+      let img = item.img;
+      img.onload = function () {
+        //只有每张图片都是success,success才未true
+        success = success & true
+        item.status = 'loaded'
+        done()
+      }
+      img.onerror = function () {
+        success = false;
+        item.status = 'error'
+        done()
+      }
+      //发起了一个http(s)的请求
+      img.src = item.src
+
+      function done() {
+        //清理，接触事件绑定
+        img.onload = img.onerror = null;
+        console.log('suc')
+        //兼容低版本IE
+        console.log({
+          success, item
+        })
+        try {
+          delete window[item.key]
+        } catch (e) {
+
+        }
+        //每张图片加载完成， 计数器减一，当所有图片加载完成且没有超时的情况
+        //清除超时计数器，且执行回调函数
+        if (!--count && !isTimeOut) {
+          clearTimeout(timeoutId)
+          callback(success)
+        }
+      }
+
+    }
+
+    //超时函数
+    function onTimeout() {
+      isTimeOut = true;
+      callback(false)
+    }
+  }
+
+
+
+  //main
+  const imgList = ['https://dummyimage.com/600x400/fc4969', 'https://dummyimage.com/600x400/fc5849', 'https://dummyimage.com/600x400/fc5969']
+  //初始化状态
+  const STATE_INITAL = 0;
+  //开始状态
+  const STATE_START = 1;
+  //停止状态
+  const STATE_STOP = 2;
+  //同步任务
+  const TASK_SYNC = 0;
+  //异步任务
+  const TASK_ASYNC = 1;
+
+  function Animation() {
+    this.taskQuene = []
+    this.index = 0
+    this.state = STATE_INITAL
+  }
+  Animation.prototype.loadImage = function (imgList) {
+    let taskFn = function (next) {
+      loadImage(imgList.slice(), next)
+    }
+    let type = TASK_SYNC
+    return this._add(taskFn, type);
+  }
+  Animation.prototype.start = function (interval) {
+    if (this.state === STATE_START) {
+      return this
+    }
+    //如果任务链中没有任务，则放回
+    if (!this.taskQuene.length) {
+      return this
+    }
+  }
+  //添加任务到任务队列
+  Animation.prototype._add = function (taskFn, type) {
+    this.taskQuene.push({
+      taskFn: taskFn,
+      type: type
+    })
+    //链式调用
+    return this
+  }
+</script>
+<style>
+
+</style>
+
+</html>
