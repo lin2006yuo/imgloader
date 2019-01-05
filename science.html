@@ -99,7 +99,104 @@
 
 
 
-  //main
+
+  //timeline.js
+  //时间轴类
+  const DEFAULT_INTERVAL = 1000 / 60
+  //初始化状态
+  const STATE_INITAL = 0
+  //开始状态
+  const STATE_START = 1;
+  //停止状态
+  const STATE_STOP = 2;
+
+
+  let  requestAniamtionFrame = (function(){
+    return window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            window.oRequestAnimationFrame ||
+            function(callback) {
+              return window.setTimeout(callback, callback.interval || DEFAULT_INTERVAL)
+            }
+  })()
+
+  let cancelAnimationFrame = (function(){
+    return window.cancelAnimationFrame ||
+          window.webkitCancelAnimationFrame ||
+          window.mozCancelRequestAnimationFrame ||
+          window.oCancelRequestAnimationFrame ||
+          function(id) {
+            return window.clearTimeout(id)
+          }
+  })()
+  
+  function Timeline() {
+    this.animationHandler = 0;
+    this.state = STATE_INITAL 
+  }
+  Timeline.prototype.onenterframe = function(time) {
+
+  }
+  Timeline.prototype.start = function(interval) {
+    if(this.state === STATE_START) {
+      return 
+    }
+    this.state = STATE_START;
+    this.interval = interval || DEFAULT_INTERVAL
+    startTimeline(this, +new Date())
+  }
+  Timeline.prototype.stop = function() {
+    if(this.state !== STATE_START) {
+      return
+    }
+    this.state = STATE_STOP
+    //如果动画开始过，则记录动画从开始到现在所经历的时间
+    if(this.startTime) {
+      this.dur = +new Date() - this.startTime
+    }
+    cancelAnimationFrame(this.animationHandler)
+  }
+  Timeline.prototype.restart = function() {
+    if(this.state === STATE_START) {
+      return;
+    }
+    if(!this.dur || !this.interval) {
+      return
+    }
+    this.state = STATE_START
+    // 无缝连接动画
+    startTimeline(this, +new Date() - this.dur)
+  }
+
+  //时间轴动画启动函数
+  function startTimeline(timeline, startTime) {
+    timeline.startTime = startTime
+    nextTick.interval = timeline.interval
+    //记录上一次提交的时间戳
+    let lastTick = +new Date()
+    nextTick()
+
+    //每一帧执行的函数
+    function nextTick() {
+      timeline.animationHandler = requestAniamtionFrame(nextTick)
+      //如果当前时间与上一次回调的时间戳大于设置的时间间隔
+      //表示这一次可以执行回调函数
+      if(now - lastTick >= timeline.interval) {
+        timeline.onenterframe(now -startTime);
+        lastTick = now
+      }
+    }
+  }
+
+
+
+
+
+
+
+
+  //main.js
   const imgList = ['https://dummyimage.com/600x400/fc4969', 'https://dummyimage.com/600x400/fc5849', 'https://dummyimage.com/600x400/fc5969']
   //初始化状态
   const STATE_INITAL = 0;
@@ -132,6 +229,10 @@
     if (!this.taskQuene.length) {
       return this
     }
+    this.state = STATE_START;
+    this.interval = interval;
+    this._runTask()
+    return this
   }
   //添加任务到任务队列
   Animation.prototype._add = function (taskFn, type) {
@@ -141,6 +242,46 @@
     })
     //链式调用
     return this
+  }
+  Animation.prototype._runTask = function () {
+    if (!this.taskQuene || this.taskQuene.length) {
+      return
+    }
+    //任务执行完毕
+    if (this.index === this.taskQuene.length) {
+      this.dispose()
+      return
+    }
+    //获得任务链的当前任务
+    let task = this.taskQuene[this.index]
+    if (task.type === TASK_SYNC) {
+      this._syncTask(taks)
+    } else {
+      this._asyncTask(task)
+    }
+  }
+  /**
+   * 同步任务
+   * 
+   * 
+   * */
+  Animation.prototype._syncTask = function (task) {
+    let me = this
+    let next = function() {
+      me._next()
+    }
+    let taskFn = task.taskFn
+    taskFn(next)
+  }
+  /**
+   * 异步任务
+   * */
+  Animation.prototype._asyncTask = function(task) {
+
+  }
+  Animation.prototype._next = function() {
+    this.index ++
+    this._runTask()
   }
 </script>
 <style>
